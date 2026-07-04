@@ -23,8 +23,8 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 using namespace std::placeholders;
 
 namespace {
-    constexpr int windowWidth = 300;            // main window width
-    constexpr int windowHeight = 300;			// main window height
+    constexpr int windowWidth = 600;            // main window width
+    constexpr int windowHeight = 450;			// main window height
     constexpr int timerIdPeakMeter = 1;
     constexpr int timerPeriodPeakMeter = 33;    // in milliseconds
 
@@ -223,10 +223,15 @@ void SoundRemoteApp::rememberCaptureDevice(int deviceKey, const std::wstring& de
 
 long SoundRemoteApp::getCharHeight(HWND hWnd) const {
     HDC hdc = GetDC(hWnd);
+    HFONT oldFont = nullptr;
+    if (uiFont_) {
+        oldFont = (HFONT)SelectObject(hdc, uiFont_);
+    }
     TEXTMETRIC tm;
     GetTextMetrics(hdc, &tm);
+    if (oldFont) SelectObject(hdc, oldFont);
     ReleaseDC(hWnd, hdc);
-    return tm.tmHeight;
+    return tm.tmHeight + tm.tmExternalLeading;
 }
 
 HWND SoundRemoteApp::setTooltip(HWND toolWindow, PTSTR text, HWND parentWindow) const {
@@ -630,9 +635,9 @@ bool SoundRemoteApp::initInstance(int nCmdShow) {
         return false;
     }
 
+    initFont();
     initInterface(mainWindow_);
     initControls();
-    initFont();
 
     ShowWindow(mainWindow_, nCmdShow);
     return true;

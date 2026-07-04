@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: SoundRemote Windows 服务端解决方案根目录
+title: SoundRemote Windows 服务端解决方案根
 scope:
     - README.md
     - COPYING
