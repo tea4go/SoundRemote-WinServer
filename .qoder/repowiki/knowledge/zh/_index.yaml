@@ -1,0 +1,27 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: main
+nodes_managed: true
+exported_at: "2026-07-04T15:57:28Z"
+modules:
+    "":
+        dir_name: SoundRemote Windows 服务端（根工程与构建配置）
+        title: SoundRemote Windows 服务端（根工程与构建配置）
+        scope:
+            - README.md
+            - COPYING
+            - opus_license.txt
+            - .gitignore
+            - CLAUDE.md
+            - SoundRemote.sln
+            - vcpkg.json
+            - vcpkg-configuration.json
+            - build_win.ps1
+            - run_win.bat
+            - run_win.ps1
+            - .github/workflows/build.yml
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

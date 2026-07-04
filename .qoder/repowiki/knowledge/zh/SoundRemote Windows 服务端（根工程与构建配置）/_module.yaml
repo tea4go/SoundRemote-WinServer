@@ -1,0 +1,19 @@
+schema_version: 1
+module_path: ""
+title: SoundRemote Windows 服务端（根工程与构建配置）
+scope:
+    - README.md
+    - COPYING
+    - opus_license.txt
+    - .gitignore
+    - CLAUDE.md
+    - SoundRemote.sln
+    - vcpkg.json
+    - vcpkg-configuration.json
+    - build_win.ps1
+    - run_win.bat
+    - run_win.ps1
+    - .github/workflows/build.yml
+source_files: []
+depends_on: []
+related_to: []
