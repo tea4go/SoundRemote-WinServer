@@ -5,6 +5,7 @@
 namespace Section {
 	constexpr auto network{ L"network" };
 	constexpr auto general{ L"general" };
+	constexpr auto ui{ L"ui" };
 }
 
 namespace Setting {
@@ -12,6 +13,10 @@ namespace Setting {
 	constexpr auto clientPort{ L"client_port" };
 	constexpr auto checkUpdates{ L"check_updates" };
 	constexpr auto captureDevice{ L"capture_device" };
+	constexpr auto language{ L"Language" };
+	constexpr auto font{ L"Font" };
+	constexpr auto fontSize{ L"Font.Size" };
+	constexpr auto fontBold{ L"Font.Bold" };
 }
 
 namespace DefaultValue {
@@ -19,9 +24,13 @@ namespace DefaultValue {
 	constexpr auto clientPort{ Net::defaultClientPort };
 	constexpr bool checkUpdates{ true };
 	constexpr auto captureDevice = defaultRenderDeviceId;
+	constexpr auto language{ L"English" };
+	constexpr auto font{ L"Segoe UI" };
+	constexpr double fontSize{ 9.0 };
+	constexpr bool fontBold{ false };
 }
 
-Settings::Settings(const std::string& fileName): fileName_(fileName) {
+Settings::Settings(const std::wstring& fileName): fileName_(fileName) {
 	ini_ = std::make_unique<CSimpleIniCaseW>(true);
 	SI_Error rc = ini_->LoadFile(fileName.c_str());
 	if (rc == SI_OK) {
@@ -48,6 +57,47 @@ std::wstring Settings::getCaptureDevice() const {
 	return ini_->GetValue(Section::general, Setting::captureDevice);
 }
 
+std::wstring Settings::getLanguage() const {
+	return ini_->GetValue(Section::ui, Setting::language, DefaultValue::language);
+}
+
+std::wstring Settings::getFont() const {
+	return ini_->GetValue(Section::ui, Setting::font, DefaultValue::font);
+}
+
+double Settings::getFontSize() const {
+	return ini_->GetDoubleValue(Section::ui, Setting::fontSize, DefaultValue::fontSize);
+}
+
+bool Settings::getFontBold() const {
+	return ini_->GetBoolValue(Section::ui, Setting::fontBold, DefaultValue::fontBold);
+}
+
+void Settings::setLanguage(const std::wstring& language) {
+	if (ini_->GetValue(Section::ui, Setting::language, DefaultValue::language) == language) return;
+	ini_->SetValue(Section::ui, Setting::language, language.c_str());
+	ini_->SaveFile(fileName_.c_str());
+}
+
+void Settings::setFont(const std::wstring& font) {
+	if (ini_->GetValue(Section::ui, Setting::font, DefaultValue::font) == font) return;
+	ini_->SetValue(Section::ui, Setting::font, font.c_str());
+	ini_->SaveFile(fileName_.c_str());
+}
+
+void Settings::setFontSize(double size) {
+	if (ini_->GetDoubleValue(Section::ui, Setting::fontSize, DefaultValue::fontSize) == size) return;
+	ini_->SetDoubleValue(Section::ui, Setting::fontSize, size);
+	ini_->SaveFile(fileName_.c_str());
+}
+
+void Settings::setFontBold(bool bold) {
+	if (ini_->GetBoolValue(Section::ui, Setting::fontBold, DefaultValue::fontBold) == bold) return;
+	ini_->SetBoolValue(Section::ui, Setting::fontBold, bold);
+	ini_->SaveFile(fileName_.c_str());
+}
+
+
 void Settings::setCheckUpdates(bool value) {
 	if (ini_->GetBoolValue(Section::general, Setting::checkUpdates) == value) {
 		return;
@@ -69,6 +119,10 @@ void Settings::setDefaultValues() {
 	ini_->SetLongValue(Section::network, Setting::clientPort, DefaultValue::clientPort);
 	ini_->SetBoolValue(Section::general, Setting::checkUpdates, DefaultValue::checkUpdates);
 	ini_->SetValue(Section::general, Setting::captureDevice, DefaultValue::captureDevice);
+	ini_->SetValue(Section::ui, Setting::language, DefaultValue::language);
+	ini_->SetValue(Section::ui, Setting::font, DefaultValue::font);
+	ini_->SetDoubleValue(Section::ui, Setting::fontSize, DefaultValue::fontSize);
+	ini_->SetBoolValue(Section::ui, Setting::fontBold, DefaultValue::fontBold);
 }
 
 void Settings::checkMissingSettings() {
@@ -93,6 +147,22 @@ void Settings::checkMissingSettings() {
 	}
 	if (!ini_->KeyExists(Section::general, Setting::captureDevice)) {
 		ini_->SetValue(Section::general, Setting::captureDevice, DefaultValue::captureDevice);
+		saveNeeded = true;
+	}
+	if (!ini_->KeyExists(Section::ui, Setting::language)) {
+		ini_->SetValue(Section::ui, Setting::language, DefaultValue::language);
+		saveNeeded = true;
+	}
+	if (!ini_->KeyExists(Section::ui, Setting::font)) {
+		ini_->SetValue(Section::ui, Setting::font, DefaultValue::font);
+		saveNeeded = true;
+	}
+	if (!ini_->KeyExists(Section::ui, Setting::fontSize)) {
+		ini_->SetDoubleValue(Section::ui, Setting::fontSize, DefaultValue::fontSize);
+		saveNeeded = true;
+	}
+	if (!ini_->KeyExists(Section::ui, Setting::fontBold)) {
+		ini_->SetBoolValue(Section::ui, Setting::fontBold, DefaultValue::fontBold);
 		saveNeeded = true;
 	}
 	auto keysWithoutSection = ini_->GetSectionSize(L"");

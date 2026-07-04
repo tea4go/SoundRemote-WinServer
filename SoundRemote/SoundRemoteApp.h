@@ -47,6 +47,7 @@ private:
 	HWND peakMeterProgress_ = nullptr;
 	HWND keystrokes_ = nullptr;
 	std::unique_ptr<MuteButton> muteButton_;
+	HFONT uiFont_ = nullptr;
 	// Data
 	std::wstring currentDeviceId_;
 	// Device key - number stored as data in select device ComboBox items
@@ -66,6 +67,7 @@ private:
 	// UI related
 	void initStrings();
 	void initInterface(HWND hWndParent);
+	void initFont();
 	void initControls();
 	void startPeakMeter() const;
 	void stopPeakMeter() const;

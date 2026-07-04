@@ -8,7 +8,8 @@
 
 namespace {
 
-const std::string rootPath{ testing::TempDir() + "soundremotetests\\" };
+auto tempDirStr = testing::TempDir() + "soundremotetests\\";
+const std::wstring rootPath{ tempDirStr.begin(), tempDirStr.end() };
 
 class SettingsTest : public testing::Test {
 protected:
@@ -25,7 +26,7 @@ protected:
 };
 
 TEST_F(SettingsTest, ServerPort_default_value) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	auto settings = Settings(iniFile);
 
@@ -33,7 +34,7 @@ TEST_F(SettingsTest, ServerPort_default_value) {
 }
 
 TEST_F(SettingsTest, ServerPort_read) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	int expected = 568;
 	std::ofstream os(iniFile, std::ios::out | std::ios::trunc);
@@ -46,7 +47,7 @@ TEST_F(SettingsTest, ServerPort_read) {
 }
 
 TEST_F(SettingsTest, ClientPort_default_value) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	auto settings = Settings(iniFile);
 
@@ -55,7 +56,7 @@ TEST_F(SettingsTest, ClientPort_default_value) {
 
 
 TEST_F(SettingsTest, ClientPort_read) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	int expected = 6879;
 	std::ofstream os(iniFile, std::ios::out | std::ios::trunc);
@@ -71,7 +72,7 @@ TEST_F(SettingsTest, ClientPort_read) {
 // Test migration of server port and client port from .ini files created by app
 // version 0.5.2 or earlier, before .ini file had sections.
 TEST_F(SettingsTest, Migration) {
-	const std::string iniFile = rootPath + "old.ini";
+	const std::wstring iniFile = rootPath + L"old.ini";
 
 	int expectedServerPort = 123;
 	int expectedClientPort = 456;
@@ -87,7 +88,7 @@ TEST_F(SettingsTest, Migration) {
 }
 
 TEST_F(SettingsTest, CheckUpdates_default_value) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	auto settings = Settings(iniFile);
 
@@ -95,7 +96,7 @@ TEST_F(SettingsTest, CheckUpdates_default_value) {
 }
 
 TEST_F(SettingsTest, CheckUpdates_write_read) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	// Change to false with a Settings object
 	Settings(iniFile).setCheckUpdates(false);
@@ -106,7 +107,7 @@ TEST_F(SettingsTest, CheckUpdates_write_read) {
 }
 
 TEST_F(SettingsTest, CaptureDevice_default_value) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 
 	auto settings = Settings(iniFile);
 
@@ -114,7 +115,7 @@ TEST_F(SettingsTest, CaptureDevice_default_value) {
 }
 
 TEST_F(SettingsTest, CaptureDevice_write_read) {
-	const std::string iniFile = rootPath + "settings.ini";
+	const std::wstring iniFile = rootPath + L"settings.ini";
 	auto expected = std::wstring{ L"expected dev1ce" };
 
 	Settings(iniFile).setCaptureDevice(expected);

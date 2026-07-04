@@ -10,11 +10,15 @@ constexpr auto defaultCaptureDeviceId = L"default_recording";
 
 class Settings {
 public:
-	Settings(const std::string& fileName);
+	Settings(const std::wstring& fileName);
 	int getServerPort() const;
 	int getClientPort() const;
 	bool getCheckUpdates() const;
 	std::wstring getCaptureDevice() const;
+	std::wstring getLanguage() const;
+	std::wstring getFont() const;
+	double getFontSize() const;
+	bool getFontBold() const;
 	/// <summary>
 	/// Updates the 'check_updates' preference and modifies the file only if the
 	/// new value is different from the current one.
@@ -27,9 +31,13 @@ public:
 	/// </summary>
 	/// <param name="deviceId">- device ID</param>
 	void setCaptureDevice(const std::wstring& deviceId);
+	void setLanguage(const std::wstring& language);
+	void setFont(const std::wstring& font);
+	void setFontSize(double size);
+	void setFontBold(bool bold);
 
 private:
-	std::string fileName_;
+	std::wstring fileName_;
 	std::unique_ptr<CSimpleIniCaseW> ini_;
 
 	void setDefaultValues();

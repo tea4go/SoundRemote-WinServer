@@ -53,6 +53,9 @@ SoundRemoteApp::~SoundRemoteApp() {
     if (ioContextThread_ && ioContextThread_->joinable()) {
         ioContextThread_->join();
     }
+    if (uiFont_) {
+        DeleteObject(uiFont_);
+    }
 }
 
 std::unique_ptr<SoundRemoteApp> SoundRemoteApp::create(_In_ HINSTANCE hInstance){
@@ -90,7 +93,6 @@ bool SoundRemoteApp::toggleMenuItem(UINT itemId) const {
 
 void SoundRemoteApp::run() {
     Util::setMainWindow(mainWindow_);
-    initSettings();
     initMenu();
     if (settings_->getCheckUpdates()) {
         checkUpdates(true);
@@ -504,7 +506,11 @@ void SoundRemoteApp::stopPeakMeter() const {
 }
 
 void SoundRemoteApp::initSettings() {
-    settings_ = std::make_unique<Settings>("settings.ini");
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring settingsPath(exePath);
+    settingsPath = settingsPath.substr(0, settingsPath.find_last_of(L"\\/") + 1) + L"settings.ini";
+    settings_ = std::make_unique<Settings>(settingsPath);
 }
 
 void SoundRemoteApp::initMenu() {
@@ -517,24 +523,89 @@ void SoundRemoteApp::initMenu() {
         mii.fState = MFS_UNCHECKED;
     }
     SetMenuItemInfo(menu, IDM_CHECK_UPDATES_ON_START, FALSE, &mii);
+
+    if (settings_->getLanguage() == L"Chinese") {
+        MENUITEMINFO miText{ sizeof(MENUITEMINFO) };
+        miText.fMask = MIIM_STRING;
+        auto setMenuText = [&](UINT id, LPCWSTR text) {
+            miText.dwTypeData = const_cast<LPWSTR>(text);
+            SetMenuItemInfo(menu, id, FALSE, &miText);
+        };
+        // File menu
+        HMENU fileMenu = GetSubMenu(menu, 0);
+        ModifyMenuW(menu, 0, MF_BYPOSITION | MF_POPUP | MF_STRING, (UINT_PTR)fileMenu, L"文件(&F)");
+        setMenuText(IDM_EXIT, L"退出(&X)");
+        // Help menu
+        HMENU helpMenu = GetSubMenu(menu, 1);
+        ModifyMenuW(menu, 1, MF_BYPOSITION | MF_POPUP | MF_STRING, (UINT_PTR)helpMenu, L"帮助(&H)");
+        setMenuText(IDM_CHECK_UPDATES_ON_START, L"启动时检查更新");
+        setMenuText(IDM_CHECK_UPDATES, L"检查更新...");
+        setMenuText(IDM_HOMEPAGE, L"主页");
+        setMenuText(IDM_ABOUT, L"关于(&A)...");
+        DrawMenuBar(mainWindow_);
+    }
 }
 
 void SoundRemoteApp::initStrings() {
-    mainWindowTitle_ = loadStringResource(IDS_APP_TITLE);
-    serverAddressesLabel_ = loadStringResource(IDS_SERVER_ADDRESSES);
-    defaultRenderDeviceLabel_ = loadStringResource(IDS_DEFAULT_RENDER);
-    defaultCaptureDeviceLabel_ = loadStringResource(IDS_DEFAULT_CAPTURE);
-    clientListLabel_ = loadStringResource(IDS_CLIENTS);
-    keystrokeListLabel_ = loadStringResource(IDS_HOTKEYS);
-    muteButtonText_ = loadStringResource(IDS_MUTE);
-    updateCheckTitle_ = loadStringResource(IDS_UPDATE_CHECK);
-    updateCheckFound_ = loadStringResource(IDS_UPDATE_FOUND);
-    updateCheckNotFound_ = loadStringResource(IDS_UPDATE_NOT_FOUND);
-    updateCheckError_ = loadStringResource(IDS_UPDATE_CHECK_ERROR);
+    if (settings_->getLanguage() == L"Chinese") {
+        mainWindowTitle_          = L"SoundRemote";
+        serverAddressesLabel_     = L"服务器IP地址";
+        defaultRenderDeviceLabel_ = L"默认播放设备";
+        defaultCaptureDeviceLabel_= L"默认录音设备";
+        clientListLabel_          = L"客户端";
+        keystrokeListLabel_       = L"快捷键";
+        muteButtonText_           = L"静音";
+        updateCheckTitle_         = L"检查更新";
+        updateCheckFound_         = L"有新版本可用。\n是否下载？";
+        updateCheckNotFound_      = L"暂无更新";
+        updateCheckError_         = L"检查更新时发生错误";
+    } else {
+        mainWindowTitle_          = loadStringResource(IDS_APP_TITLE);
+        serverAddressesLabel_     = loadStringResource(IDS_SERVER_ADDRESSES);
+        defaultRenderDeviceLabel_ = loadStringResource(IDS_DEFAULT_RENDER);
+        defaultCaptureDeviceLabel_= loadStringResource(IDS_DEFAULT_CAPTURE);
+        clientListLabel_          = loadStringResource(IDS_CLIENTS);
+        keystrokeListLabel_       = loadStringResource(IDS_HOTKEYS);
+        muteButtonText_           = loadStringResource(IDS_MUTE);
+        updateCheckTitle_         = loadStringResource(IDS_UPDATE_CHECK);
+        updateCheckFound_         = loadStringResource(IDS_UPDATE_FOUND);
+        updateCheckNotFound_      = loadStringResource(IDS_UPDATE_NOT_FOUND);
+        updateCheckError_         = loadStringResource(IDS_UPDATE_CHECK_ERROR);
+    }
+}
+
+void SoundRemoteApp::initFont() {
+    if (uiFont_) {
+        DeleteObject(uiFont_);
+        uiFont_ = nullptr;
+    }
+    const auto fontName = settings_->getFont();
+    const int pointSize  = static_cast<int>(settings_->getFontSize());
+    const bool bold      = settings_->getFontBold();
+    HDC hdc = GetDC(mainWindow_);
+    const int lfHeight = -MulDiv(pointSize, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+    ReleaseDC(mainWindow_, hdc);
+    uiFont_ = CreateFontW(
+        lfHeight, 0, 0, 0,
+        bold ? FW_BOLD : FW_NORMAL,
+        FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+        fontName.c_str()
+    );
+    if (!uiFont_) return;
+    // Apply to all child controls
+    EnumChildWindows(mainWindow_, [](HWND child, LPARAM lParam) -> BOOL {
+        SendMessage(child, WM_SETFONT, lParam, TRUE);
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(uiFont_));
 }
 
 bool SoundRemoteApp::initInstance(int nCmdShow) {
     constexpr wchar_t CLASS_NAME[] = L"SOUNDREMOTE";
+
+    initSettings();
 
     WNDCLASSEXW wcex = { 0 };
     wcex.cbSize = sizeof(WNDCLASSEX);
@@ -561,6 +632,7 @@ bool SoundRemoteApp::initInstance(int nCmdShow) {
 
     initInterface(mainWindow_);
     initControls();
+    initFont();
 
     ShowWindow(mainWindow_, nCmdShow);
     return true;
