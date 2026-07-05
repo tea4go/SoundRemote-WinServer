@@ -107,6 +107,8 @@ std::u8string UpdateChecker::getLatestRelease() const {
         WINHTTP_FLAG_SECURE_DEFAULTS
     );
     if (!session) { return {}; }
+    // resolve/connect/send/receive timeouts in ms — prevents hangs on unreachable networks
+    WinHttpSetTimeouts(session, 5000, 5000, 10000, 10000);
 
     connect = WinHttpConnect(
         session,
