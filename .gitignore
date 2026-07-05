@@ -9,6 +9,10 @@ vcpkg_installed/
 # Project-specific files
 [Ss]ettings.ini
 
+# 本地凭据（GITEE_TOKEN 等），仅本机使用，不上传仓库
+scripts/local/secrets.ps1
+scripts/local/*.local.ps1
+
 # User-specific files
 *.rsuser
 *.suo

@@ -259,6 +259,12 @@ function Bump-Version {
 
 # Publish：版本号 +1，并强制随后触发 Build（新版本号才能进入 exe）
 if ($Publish) {
+    # 加载本地凭据文件（scripts\local\secrets.ps1），此文件由 .gitignore 排除，不上传仓库
+    $secretsFile = Join-Path $PSScriptRoot "scripts\local\secrets.ps1"
+    if (Test-Path $secretsFile) {
+        . $secretsFile
+        Write-Host "已加载本地凭据: $secretsFile" -ForegroundColor DarkGray
+    }
     $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
     $version = Bump-Version -RcPath $rcPath
     if (-not $version) { exit 1 }
@@ -386,9 +392,11 @@ becomes unavailable, contact the fork maintainer at the URL listed.
         $giteeRepo  = 'SoundRemote-WinServer'
         $giteeToken = $env:GITEE_TOKEN
         if ([string]::IsNullOrWhiteSpace($giteeToken)) {
-            Write-Error "未设置 GITEE_TOKEN 环境变量。请先设置："
-            Write-Host '  $env:GITEE_TOKEN = "你的 Gitee 私人令牌"' -ForegroundColor Yellow
-            Write-Host '  获取令牌: https://gitee.com/personal_access_tokens' -ForegroundColor Yellow
+            Write-Error "未设置 GITEE_TOKEN。请按以下方式配置："
+            Write-Host "  1. 复制 scripts\local\secrets.ps1.example 为 scripts\local\secrets.ps1" -ForegroundColor Yellow
+            Write-Host "  2. 在文件中填入你的 Gitee 私人令牌" -ForegroundColor Yellow
+            Write-Host "  获取令牌: https://gitee.com/personal_access_tokens" -ForegroundColor Yellow
+            Write-Host "  该文件已被 .gitignore 排除，不会上传到仓库" -ForegroundColor DarkGray
             exit 1
         }
 
