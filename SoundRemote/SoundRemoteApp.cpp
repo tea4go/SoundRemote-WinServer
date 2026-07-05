@@ -444,6 +444,7 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     const int tabH = windowH - tabY - padding;
     tabControl_ = CreateWindowW(WC_TABCONTROL, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
         tabX, tabY, tabW, tabH, hWndParent, nullptr, hInst_, nullptr);
+    if (uiFont_) SendMessage(tabControl_, WM_SETFONT, reinterpret_cast<WPARAM>(uiFont_), TRUE);
 
     TCITEMW tie{};
     tie.mask = TCIF_TEXT;
@@ -453,7 +454,7 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     TabCtrl_InsertItem(tabControl_, 1, &tie);
     // Ensure tab labels are wide enough for the current font (Chinese chars: width ≈ height)
     TabCtrl_SetMinTabWidth(tabControl_, charH * 3 + 20);
-    TabCtrl_SetPadding(tabControl_, 6, 10);
+    TabCtrl_SetPadding(tabControl_, 6, 8);
 
     // Get display area inside the tab control
     RECT tabDisplay{ 0, 0, tabW, tabH };
@@ -747,6 +748,13 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             }
         }
     }
+    break;
+
+    case WM_SETCURSOR:
+        if (reinterpret_cast<HWND>(wParam) == tabControl_) {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
     break;
 
     case WM_NOTIFY:
