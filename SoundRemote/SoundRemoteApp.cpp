@@ -750,11 +750,14 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     }
     break;
 
-    case WM_SETCURSOR:
-        if (reinterpret_cast<HWND>(wParam) == tabControl_) {
+    case WM_SETCURSOR: {
+        HWND target = reinterpret_cast<HWND>(wParam);
+        if (target == tabControl_ || target == deviceComboBox_ || target == addressButton_
+            || (muteButton_ && target == muteButton_->handle())) {
             SetCursor(LoadCursor(nullptr, IDC_HAND));
             return TRUE;
         }
+    }
     break;
 
     case WM_NOTIFY:
