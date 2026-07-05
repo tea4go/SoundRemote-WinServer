@@ -5,6 +5,7 @@ param(
     [switch]$InstallDeps,
     [switch]$Check,
     [switch]$Publish,
+    [switch]$BumpVersion,
     [ValidateSet('github', 'gitee')]
     [string]$Target = 'github',
     [string]$Configuration = "Release",
@@ -12,11 +13,12 @@ param(
     [string]$Output = ""
 )
 
-if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish) {
-    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>]"
+if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish -and -not $BumpVersion) {
+    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-BumpVersion] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>]"
     Write-Host ""
     Write-Host "  -Check           检测系统环境，确认所有构建依赖均已就绪"
     Write-Host "  -InstallDeps     安装构建依赖（nuget restore + vcpkg install）"
+    Write-Host "  -BumpVersion     版本号自动 +1（patch），进位规则：每位 max 9"
     Write-Host "  -Build           执行构建"
     Write-Host "  -Run             退出旧版本并运行已构建的最新版本"
     Write-Host "  -Test            运行单元测试"
@@ -27,6 +29,8 @@ if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not 
     Write-Host "  -Configuration   构建配置（默认: Release）"
     Write-Host "  -Platform        目标平台（仅 x64 受支持，默认: x64）"
     Write-Host "  -Output          输出目录（默认: <Platform>\<Configuration>\）"
+    Write-Host ""
+    Write-Host "典型发布流程: .\run_win.ps1 -BumpVersion -Build -Publish"
     exit 0
 }
 
@@ -219,6 +223,48 @@ function Read-RcVersion {
     return $null
 }
 
+function Bump-Version {
+    param([string]$RcPath)
+    if (-not (Test-Path $RcPath)) { Write-Error "未找到 $RcPath"; return $null }
+    $content = Get-Content -LiteralPath $RcPath -Raw -Encoding Unicode
+    if ($content -notmatch 'FILEVERSION\s+(\d+),\s*(\d+),\s*(\d+),\s*(\d+)') {
+        Write-Error "无法解析 FILEVERSION"
+        return $null
+    }
+    $major = [int]$Matches[1]; $minor = [int]$Matches[2]; $patch = [int]$Matches[3]
+    $oldVer = "$major.$minor.$patch"
+
+    # 进位：patch<9 直接+1；patch==9 → minor+1, patch=0；minor==9 → major+1, minor=0
+    if ($patch -lt 9) {
+        $patch++
+    } elseif ($minor -lt 9) {
+        $minor++; $patch = 0
+    } elseif ($major -lt 9) {
+        $major++; $minor = 0; $patch = 0
+    } else {
+        Write-Error "版本号已到达上限 9.9.9，无法继续 +1（每位最大值为 9）"
+        return $null
+    }
+    $newVer = "$major.$minor.$patch"
+    $newTuple = "$major,$minor,$patch,0"
+    $newDotted = "$newVer.0"
+
+    # 更新 rc 中 5 处版本引用
+    $content = $content -creplace 'FILEVERSION\s+\d+,\s*\d+,\s*\d+,\s*\d+', "FILEVERSION $newTuple"
+    $content = $content -creplace 'PRODUCTVERSION\s+\d+,\s*\d+,\s*\d+,\s*\d+', "PRODUCTVERSION $newTuple"
+    $content = $content -creplace '"FileVersion",\s*"\d+\.\d+\.\d+\.\d+"', "`"FileVersion`", `"$newDotted`""
+    $content = $content -creplace '"ProductVersion",\s*"\d+\.\d+\.\d+\.\d+"', "`"ProductVersion`", `"$newDotted`""
+    $content = $content -creplace 'Version\s+\d+\.\d+\.\d+', "Version $newVer"
+
+    [System.IO.File]::WriteAllText((Resolve-Path $RcPath).Path, $content, [System.Text.Encoding]::Unicode)
+    Write-Host "版本号: $oldVer -> $newVer" -ForegroundColor Green
+    return $newVer
+}
+
+if ($BumpVersion) {
+    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
+    if (-not (Bump-Version -RcPath $rcPath)) { exit 1 }
+}
 if ($Publish) {
     $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
     $version = Read-RcVersion -RcPath $rcPath
