@@ -547,39 +547,119 @@ void SoundRemoteApp::initSettings() {
 
 void SoundRemoteApp::initMenu() {
     HMENU menu = GetMenu(mainWindow_);
+    const bool zh = (resolveLanguage() == L"Chinese");
+
+    // 复选：启动时检查更新
     MENUITEMINFO mii{ sizeof(MENUITEMINFO) };
     mii.fMask = MIIM_STATE;
-    if (settings_->getCheckUpdates()) {
-        mii.fState = MFS_CHECKED;
-    } else {
-        mii.fState = MFS_UNCHECKED;
-    }
+    mii.fState = settings_->getCheckUpdates() ? MFS_CHECKED : MFS_UNCHECKED;
     SetMenuItemInfo(menu, IDM_CHECK_UPDATES_ON_START, FALSE, &mii);
 
-    if (settings_->getLanguage() == L"Chinese") {
+    // File 菜单：在原有 Exit 之前插入 "Language" 子菜单和分隔符（首次调用时才添加）
+    HMENU fileMenu = GetSubMenu(menu, 0);
+    // 检查是否已有 Language 子菜单，避免重复添加
+    if (GetMenuItemID(fileMenu, 0) != (UINT)-1 ||
+        GetMenuItemInfoW(fileMenu, IDM_LANG_AUTO, FALSE, &mii) == FALSE) {
+        // 尝试查找 Language 子菜单是否已存在
+        bool hasLang = false;
+        int count = GetMenuItemCount(fileMenu);
+        for (int i = 0; i < count; ++i) {
+            wchar_t buf[64]{};
+            MENUITEMINFOW check{ sizeof(check) };
+            check.fMask = MIIM_STRING;
+            check.dwTypeData = buf;
+            check.cch = 63;
+            if (GetMenuItemInfoW(fileMenu, i, TRUE, &check) &&
+                (wcsstr(buf, L"Language") || wcsstr(buf, L"语言"))) {
+                hasLang = true;
+                break;
+            }
+        }
+        if (!hasLang) {
+            HMENU langSub = CreatePopupMenu();
+            AppendMenuW(langSub, MF_STRING, IDM_LANG_AUTO,    zh ? L"自动" : L"Auto");
+            AppendMenuW(langSub, MF_STRING, IDM_LANG_CHINESE, zh ? L"中文" : L"Chinese");
+            AppendMenuW(langSub, MF_STRING, IDM_LANG_ENGLISH, zh ? L"英文" : L"English");
+            // 插到 Exit 之前
+            InsertMenuW(fileMenu, IDM_EXIT, MF_BYCOMMAND | MF_POPUP | MF_STRING,
+                (UINT_PTR)langSub, zh ? L"语言(&L)" : L"&Language");
+            InsertMenuW(fileMenu, IDM_EXIT, MF_BYCOMMAND | MF_SEPARATOR, 0, nullptr);
+        }
+    }
+
+    // 单选圆点：当前语言
+    auto raw = settings_->getLanguage();
+    UINT checkedId = IDM_LANG_AUTO;
+    if (raw == L"Chinese") checkedId = IDM_LANG_CHINESE;
+    else if (raw == L"English") checkedId = IDM_LANG_ENGLISH;
+    CheckMenuRadioItem(menu, IDM_LANG_AUTO, IDM_LANG_ENGLISH, checkedId, MF_BYCOMMAND);
+
+    if (zh) {
         MENUITEMINFO miText{ sizeof(MENUITEMINFO) };
         miText.fMask = MIIM_STRING;
         auto setMenuText = [&](UINT id, LPCWSTR text) {
             miText.dwTypeData = const_cast<LPWSTR>(text);
             SetMenuItemInfo(menu, id, FALSE, &miText);
         };
-        // File menu
-        HMENU fileMenu = GetSubMenu(menu, 0);
         ModifyMenuW(menu, 0, MF_BYPOSITION | MF_POPUP | MF_STRING, (UINT_PTR)fileMenu, L"文件(&F)");
         setMenuText(IDM_EXIT, L"退出(&X)");
-        // Help menu
         HMENU helpMenu = GetSubMenu(menu, 1);
         ModifyMenuW(menu, 1, MF_BYPOSITION | MF_POPUP | MF_STRING, (UINT_PTR)helpMenu, L"帮助(&H)");
         setMenuText(IDM_CHECK_UPDATES_ON_START, L"启动时检查更新");
         setMenuText(IDM_CHECK_UPDATES, L"检查更新...");
         setMenuText(IDM_HOMEPAGE, L"主页");
         setMenuText(IDM_ABOUT, L"关于(&A)...");
+        // 语言子菜单及其子项
+        // 找到 File 里的 Language 弹出项，改标题（顶级项无固定 ID，需通过位置）
+        int cnt = GetMenuItemCount(fileMenu);
+        for (int i = 0; i < cnt; ++i) {
+            HMENU sub = GetSubMenu(fileMenu, i);
+            if (sub && GetMenuItemID(sub, 0) == IDM_LANG_AUTO) {
+                ModifyMenuW(fileMenu, i, MF_BYPOSITION | MF_POPUP | MF_STRING,
+                    (UINT_PTR)sub, L"语言(&L)");
+                setMenuText(IDM_LANG_AUTO, L"自动");
+                setMenuText(IDM_LANG_CHINESE, L"中文");
+                setMenuText(IDM_LANG_ENGLISH, L"英文");
+                break;
+            }
+        }
         DrawMenuBar(mainWindow_);
     }
 }
 
+void SoundRemoteApp::switchLanguage(const std::wstring& lang) {
+    settings_->setLanguage(lang);
+    // 重新加载字符串并重建界面文本
+    initStrings();
+    SetWindowTextW(mainWindow_, mainWindowTitle_.data());
+    // 更新 Tab 标题
+    if (tabControl_) {
+        TCITEMW tie{}; tie.mask = TCIF_TEXT;
+        tie.pszText = const_cast<LPWSTR>(clientListLabel_.c_str());
+        TabCtrl_SetItem(tabControl_, 0, &tie);
+        tie.pszText = const_cast<LPWSTR>(keystrokeListLabel_.c_str());
+        TabCtrl_SetItem(tabControl_, 1, &tie);
+    }
+    // 更新静音按钮 tooltip
+    if (addressButton_) {
+        // 不需要重建，tooltip 是运行时创建的
+    }
+    // 重建菜单文本
+    initMenu();
+    InvalidateRect(mainWindow_, nullptr, TRUE);
+}
+
+std::wstring SoundRemoteApp::resolveLanguage() const {
+    auto raw = settings_->getLanguage();
+    if (raw == L"Chinese" || raw == L"English") return raw;
+    // Auto: detect from user default UI language
+    LANGID lang = GetUserDefaultUILanguage();
+    // PRIMARYLANGID: LANG_CHINESE = 0x04
+    return (PRIMARYLANGID(lang) == LANG_CHINESE) ? L"Chinese" : L"English";
+}
+
 void SoundRemoteApp::initStrings() {
-    if (settings_->getLanguage() == L"Chinese") {
+    if (resolveLanguage() == L"Chinese") {
         mainWindowTitle_          = L"SoundRemote";
         serverAddressesLabel_     = L"服务器IP地址";
         defaultRenderDeviceLabel_ = L"默认播放设备";
@@ -742,6 +822,18 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
                 settings_->setCheckUpdates(checked);
                 return 0;
             }
+
+            case IDM_LANG_AUTO:
+                switchLanguage(L"Auto");
+                return 0;
+
+            case IDM_LANG_CHINESE:
+                switchLanguage(L"Chinese");
+                return 0;
+
+            case IDM_LANG_ENGLISH:
+                switchLanguage(L"English");
+                return 0;
 
             default:
                 break;

@@ -70,6 +70,10 @@ private:
 	void initInterface(HWND hWndParent);
 	void initFont();
 	void initControls();
+	/// 解析实际生效的语言（Auto 会检测系统区域设置）
+	std::wstring resolveLanguage() const;
+	/// 切换语言并保存设置，重启窗口内容
+	void switchLanguage(const std::wstring& lang);
 	void startPeakMeter() const;
 	void stopPeakMeter() const;
 	/// <summary>

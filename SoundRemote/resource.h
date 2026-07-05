@@ -27,6 +27,9 @@
 #define IDM_CHECK_UPDATES               32771
 #define IDM_HOMEPAGE                    32772
 #define IDM_CHECK_UPDATES_ON_START      32773
+#define IDM_LANG_AUTO                   32774
+#define IDM_LANG_CHINESE                32775
+#define IDM_LANG_ENGLISH                32776
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

@@ -25,7 +25,7 @@ namespace DefaultValue {
 	constexpr auto clientPort{ Net::defaultClientPort };
 	constexpr bool checkUpdates{ true };
 	constexpr auto captureDevice = defaultRenderDeviceId;
-	constexpr auto language{ L"English" };
+	constexpr auto language{ L"Auto" };
 	constexpr auto font{ L"Segoe UI" };
 	constexpr double fontSize{ 9.0 };
 	constexpr bool fontBold{ false };
