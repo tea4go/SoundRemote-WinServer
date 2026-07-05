@@ -13,6 +13,7 @@ namespace Setting {
 	constexpr auto clientPort{ L"client_port" };
 	constexpr auto checkUpdates{ L"check_updates" };
 	constexpr auto captureDevice{ L"capture_device" };
+	constexpr auto lastUpdateCheck{ L"last_update_check" };
 	constexpr auto language{ L"Language" };
 	constexpr auto font{ L"Font" };
 	constexpr auto fontSize{ L"Font.Size" };
@@ -94,6 +95,17 @@ void Settings::setFontSize(double size) {
 void Settings::setFontBold(bool bold) {
 	if (ini_->GetBoolValue(Section::ui, Setting::fontBold, DefaultValue::fontBold) == bold) return;
 	ini_->SetBoolValue(Section::ui, Setting::fontBold, bold);
+	ini_->SaveFile(fileName_.c_str());
+}
+
+long long Settings::getLastUpdateCheck() const {
+	return static_cast<long long>(
+		ini_->GetLongValue(Section::general, Setting::lastUpdateCheck, 0)
+	);
+}
+
+void Settings::setLastUpdateCheck(long long timestamp) {
+	ini_->SetLongValue(Section::general, Setting::lastUpdateCheck, static_cast<long>(timestamp));
 	ini_->SaveFile(fileName_.c_str());
 }
 

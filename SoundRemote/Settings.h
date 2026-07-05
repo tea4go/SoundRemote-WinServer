@@ -35,6 +35,9 @@ public:
 	void setFont(const std::wstring& font);
 	void setFontSize(double size);
 	void setFontBold(bool bold);
+	// Unix timestamp (seconds) of the last successful update check; 0 = never
+	long long getLastUpdateCheck() const;
+	void setLastUpdateCheck(long long timestamp);
 
 private:
 	std::wstring fileName_;

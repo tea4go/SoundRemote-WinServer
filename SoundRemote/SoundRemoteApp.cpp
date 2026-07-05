@@ -10,6 +10,8 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include <Windowsx.h>
 #include <shellapi.h>
 
+#include <chrono>
+
 #include <boost/asio/post.hpp>
 
 #include "CapturePipe.h"
@@ -96,7 +98,13 @@ void SoundRemoteApp::run() {
     Util::setMainWindow(mainWindow_);
     initMenu();
     if (settings_->getCheckUpdates()) {
-        checkUpdates(true);
+        // Throttle auto-check to once every 24 hours (manual menu check bypasses this)
+        const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        constexpr long long kCheckIntervalSec = 24 * 3600;
+        if (now - settings_->getLastUpdateCheck() >= kCheckIntervalSec) {
+            checkUpdates(true);
+        }
     }
     // Register for system suspend events
     RegisterSuspendResumeNotification(mainWindow_, DEVICE_NOTIFY_WINDOW_HANDLE);
@@ -354,6 +362,12 @@ void SoundRemoteApp::checkUpdates(bool quiet) {
 }
 
 void SoundRemoteApp::onUpdateCheckFinish(WPARAM wParam, LPARAM lParam) {
+    // Record successful checks (not errors) so throttling can suppress next startups
+    if (wParam == UPDATE_FOUND || wParam == UPDATE_NOT_FOUND) {
+        const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        settings_->setLastUpdateCheck(now);
+    }
     switch (wParam) {
     case UPDATE_FOUND:
         if (IDYES == MessageBox(
