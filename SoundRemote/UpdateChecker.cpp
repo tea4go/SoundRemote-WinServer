@@ -129,7 +129,7 @@ std::u8string UpdateChecker::getLatestRelease() const {
     request = WinHttpOpenRequest(
         connect,
         nullptr,
-        TEXT("/repos/soundremote/server-windows/releases/latest"),
+        TEXT("/repos/tea4go/SoundRemote-WinServer/releases/latest"),
         nullptr,
         WINHTTP_NO_REFERER,
         acceptTypes.data(),

@@ -379,7 +379,7 @@ void SoundRemoteApp::onUpdateCheckFinish(WPARAM wParam, LPARAM lParam) {
             ShellExecute(
                 nullptr,
                 TEXT("open"),
-                TEXT("https://github.com/SoundRemote/server-windows/releases"),
+                TEXT("https://github.com/tea4go/SoundRemote-WinServer/releases"),
                 nullptr,
                 nullptr,
                 SW_NORMAL
@@ -399,7 +399,7 @@ void SoundRemoteApp::visitHomepage() const {
     ShellExecute(
         nullptr,
         TEXT("open"),
-        TEXT("https://soundremote.github.io"),
+        TEXT("https://github.com/tea4go/SoundRemote-WinServer"),
         nullptr,
         nullptr,
         SW_NORMAL
