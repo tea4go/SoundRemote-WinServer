@@ -17,10 +17,11 @@ if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not 
     Write-Host ""
     Write-Host "  -Check           检测系统环境，确认所有构建依赖均已就绪"
     Write-Host "  -InstallDeps     安装构建依赖（nuget restore + vcpkg install）"
-    Write-Host "  -Build           执行构建"
+    Write-Host "  -Build           版本号 +1 并执行构建（每次 build 产生新版本）"
     Write-Host "  -Run             退出旧版本并运行已构建的最新版本"
     Write-Host "  -Test            运行单元测试"
-    Write-Host "  -Publish         版本 +1 → 构建 → 打包上传 Release（一条命令搞定）"
+    Write-Host "  -Publish         打包上传当前构建产物到 Release（不修改版本号）"
+    Write-Host "                   同一版本可分别发布到 github 和 gitee，版本保持一致"
     Write-Host "  -Target          发布平台（与 -Publish 搭配），可选：github（默认）、gitee"
     Write-Host "                   - github：需已安装并登录 gh CLI"
     Write-Host "                   - gitee：需设置环境变量 GITEE_TOKEN"
@@ -257,18 +258,20 @@ function Bump-Version {
     return $newVer
 }
 
-# Publish：版本号 +1，并强制随后触发 Build（新版本号才能进入 exe）
+# -Build 时版本号自增：每次构建产生一个唯一版本
+if ($Build) {
+    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
+    $version = Bump-Version -RcPath $rcPath
+    if (-not $version) { exit 1 }
+}
+
+# -Publish 加载本地凭据（不动版本号，直接用当前构建产物）
 if ($Publish) {
-    # 加载本地凭据文件（scripts\local\secrets.ps1），此文件由 .gitignore 排除，不上传仓库
     $secretsFile = Join-Path $PSScriptRoot "scripts\local\secrets.ps1"
     if (Test-Path $secretsFile) {
         . $secretsFile
         Write-Host "已加载本地凭据: $secretsFile" -ForegroundColor DarkGray
     }
-    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
-    $version = Bump-Version -RcPath $rcPath
-    if (-not $version) { exit 1 }
-    $Build = $true
 }
 
 if ($Build) {
