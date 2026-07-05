@@ -62,7 +62,7 @@ private:
 	std::unique_ptr<CapturePipe> capturePipe_;
 	std::unique_ptr<Settings> settings_;
 	std::shared_ptr<Clients> clients_;
-	std::unique_ptr<UpdateChecker> updateChecker_;
+	std::shared_ptr<UpdateChecker> updateChecker_;
 
 	bool initInstance(int nCmdShow);
 	// UI related

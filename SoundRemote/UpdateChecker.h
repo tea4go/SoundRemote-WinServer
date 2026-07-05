@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 
+#include <atomic>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -11,9 +13,10 @@ constexpr auto UPDATE_FOUND = 0;
 constexpr auto UPDATE_NOT_FOUND = 1;
 constexpr auto UPDATE_CHECK_ERROR = 2;
 
-class UpdateChecker {
+class UpdateChecker : public std::enable_shared_from_this<UpdateChecker> {
 public:
 	UpdateChecker(HWND mainWindow);
+	~UpdateChecker();
 
 	/// <summary>
 	/// Checks for a newer version and shows a message window with the result, depending
@@ -25,6 +28,8 @@ public:
 private:
 	HWND mainWindow_ = nullptr;
 	std::mutex checkMutex_;
+	// Set to true in destructor so worker thread stops posting messages to a dead HWND
+	std::atomic<bool> stopping_{ false };
 
 	/// <summary>
 	/// Returns product version or an empty string on error

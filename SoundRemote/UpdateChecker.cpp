@@ -33,9 +33,15 @@ namespace {
 UpdateChecker::UpdateChecker(HWND mainWindow): mainWindow_(mainWindow) {
 }
 
+UpdateChecker::~UpdateChecker() {
+    // Signal worker threads to skip posting to a soon-to-be-invalid HWND.
+    // shared_from_this in worker keeps the object alive until they finish.
+    stopping_.store(true);
+}
+
 void UpdateChecker::checkUpdates(bool quiet) {
-    std::jthread worker(&UpdateChecker::checkWorker, this, quiet);
-    worker.detach();
+    auto self = shared_from_this();
+    std::thread([self, quiet]() { self->checkWorker(quiet); }).detach();
 }
 
 std::string UpdateChecker::getVersion() const {
@@ -217,6 +223,7 @@ void UpdateChecker::checkWorker(bool quiet) {
 }
 
 void UpdateChecker::showResult(int result, bool quiet) const {
+    if (stopping_.load()) { return; }  // Owner is being destroyed, HWND may be gone
     if (UPDATE_FOUND == result) {
         PostMessage(mainWindow_, WM_UPDATE_CHECK, result, 0);
         return;

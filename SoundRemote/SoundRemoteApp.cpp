@@ -348,7 +348,7 @@ void SoundRemoteApp::onReceiveKeystroke(const Keystroke& keystroke) const {
 
 void SoundRemoteApp::checkUpdates(bool quiet) {
     if (!updateChecker_) {
-        updateChecker_ = std::make_unique<UpdateChecker>(mainWindow_);
+        updateChecker_ = std::make_shared<UpdateChecker>(mainWindow_);
     }
     updateChecker_->checkUpdates(quiet);
 }
