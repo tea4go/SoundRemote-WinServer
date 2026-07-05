@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 void* Util::mainWindow_ = nullptr;
-const std::regex Util::versionRegex_{ "(\\d+)\\.(\\d+)\\.(\\d+)\\.?(\\d+)?" };
+const std::regex Util::versionRegex_{ "v?(\\d+)\\.(\\d+)\\.(\\d+)\\.?(\\d+)?" };
 
 void Util::setMainWindow(void* mainWindowHWND) {
     mainWindow_ = mainWindowHWND;
