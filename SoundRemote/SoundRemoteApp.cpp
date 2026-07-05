@@ -766,6 +766,7 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
                 int sel = TabCtrl_GetCurSel(tabControl_);
                 ShowWindow(clientsList_, sel == 0 ? SW_SHOW : SW_HIDE);
                 ShowWindow(keystrokes_,  sel == 1 ? SW_SHOW : SW_HIDE);
+                SetFocus(sel == 0 ? clientsList_ : keystrokes_);
                 return 0;
             }
         }
