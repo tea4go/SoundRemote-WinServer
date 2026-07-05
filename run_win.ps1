@@ -233,16 +233,57 @@ if ($Publish) {
         exit 1
     }
 
-    # 打包 exe 为 zip
+    # 打包 exe + 许可证 + NOTICE 为 zip
     $artifactName = "$exeName-$version-$Platform"
     $zipPath = Join-Path $outputDir "$artifactName.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-    Compress-Archive -Path $exePath -DestinationPath $zipPath -Force
+
+    # 生成合规 NOTICE.txt（源码链接、原作者、修改说明）
+    $noticePath = Join-Path $outputDir "NOTICE.txt"
+    $noticeContent = @"
+SoundRemote Server (fork by tea4go) v$version
+============================================
+
+This software is licensed under GPL-3.0.
+See COPYING for the full license text.
+
+Origin
+------
+Original project: https://github.com/SoundRemote/server-windows
+Original author:  Aleksandr Shipovskii (Copyright (C) 2025)
+
+Fork
+----
+Fork repository:  https://github.com/tea4go/SoundRemote-WinServer
+Fork maintainer:  tea4go (Copyright (C) 2026)
+Fork changes:     see README.md for the list of modifications
+
+Third-party components
+----------------------
+Opus codec (BSD-style) — see opus_license.txt
+Boost, SimpleIni, and others — see respective LICENSE files in the source tree.
+
+Source code
+-----------
+As required by GPL-3.0 section 6, the complete corresponding source code
+for this binary is available at the fork repository above. If the repository
+becomes unavailable, contact the fork maintainer at the URL listed.
+"@
+    Set-Content -LiteralPath $noticePath -Value $noticeContent -Encoding UTF8
+
+    # 收集要打包的文件
+    $filesToZip = @($exePath, $noticePath)
+    $copyingPath = Join-Path $PSScriptRoot "COPYING"
+    $opusLicensePath = Join-Path $PSScriptRoot "opus_license.txt"
+    if (Test-Path $copyingPath)     { $filesToZip += $copyingPath }
+    if (Test-Path $opusLicensePath) { $filesToZip += $opusLicensePath }
+    Compress-Archive -Path $filesToZip -DestinationPath $zipPath -Force
+    Remove-Item $noticePath -Force  # 打包完删掉临时 NOTICE
 
     $tag = "v$version"
     $title = "$exeName v$version"
     Write-Host "  版本: $version" -ForegroundColor Cyan
-    Write-Host "  产物: $zipPath" -ForegroundColor Cyan
+    Write-Host "  产物: $zipPath (含 SoundRemote.exe, NOTICE.txt, COPYING, opus_license.txt)" -ForegroundColor Cyan
     Write-Host "  Tag:  $tag" -ForegroundColor Cyan
     Write-Host "  平台: $Target" -ForegroundColor Cyan
 

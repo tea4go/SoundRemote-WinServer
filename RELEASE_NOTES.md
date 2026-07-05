@@ -1,6 +1,9 @@
 ## SoundRemote 更新说明
 
-本次发布包含以下改进：
+> **License**: 本软件基于 GPL-3.0 协议发布。zip 内含 `COPYING`（完整许可证）与 `NOTICE.txt`（合规声明）。
+> - 源代码：https://github.com/tea4go/SoundRemote-WinServer
+> - 上游项目：https://github.com/SoundRemote/server-windows（作者 Aleksandr Shipovskii）
+> - Fork 说明：本项目在原版基础上做了中文化、字体配置、UI 重构等修改，详见 README.md
 
 ### 新功能
 - 界面国际化支持（中文/英文）
