@@ -1,6 +1,7 @@
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(lib, "Comctl32.lib")
 
 #include "SoundRemoteApp.h"
 
@@ -470,6 +471,16 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     keystrokes_ = CreateWindowW(WC_EDIT, nullptr,
         WS_CHILD | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
         editX, editY, editW, editH, tabControl_, nullptr, hInst_, nullptr);
+    // Subclass keystrokes edit to clear content on double-click
+    SetWindowSubclass(keystrokes_,
+        [](HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR) -> LRESULT {
+            if (msg == WM_LBUTTONDBLCLK) {
+                SetWindowTextW(h, L"");
+                return 0;
+            }
+            return DefSubclassProc(h, msg, wp, lp);
+        },
+        1, 0);
 
 // Address button
     const int addressButtonX = windowW - rightBlockW - padding;
