@@ -300,19 +300,18 @@ void SoundRemoteApp::stopCapture() {
 }
 
 void SoundRemoteApp::onClientListUpdate(std::forward_list<std::string> clients) const {
-    std::ostringstream addresses;
+    SendMessage(clientsList_, LB_RESETCONTENT, 0, 0);
     for (const auto& client : clients) {
-        addresses << client << "\r\n";
+        SendMessageA(clientsList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(client.c_str()));
     }
-    SetWindowTextA(clientsList_, addresses.str().c_str());
 }
 
 void SoundRemoteApp::onClientsUpdate(std::forward_list<ClientInfo> clients) const {
-    std::ostringstream addresses;
+    SendMessage(clientsList_, LB_RESETCONTENT, 0, 0);
     for (auto&& client : clients) {
-        addresses << client.address.to_string() << "\r\n";
+        auto addr = client.address.to_string();
+        SendMessageA(clientsList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(addr.c_str()));
     }
-    SetWindowTextA(clientsList_, addresses.str().c_str());
 }
 
 void SoundRemoteApp::onAddressButtonClick() const {
@@ -464,8 +463,8 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     const int editW = tabDisplay.right - tabDisplay.left;
     const int editH = tabDisplay.bottom - tabDisplay.top;
 
-    clientsList_ = CreateWindowW(WC_EDIT, nullptr,
-        WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
+    clientsList_ = CreateWindowW(WC_LISTBOX, nullptr,
+        WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | LBS_NOINTEGRALHEIGHT | LBS_NOTIFY,
         editX, editY, editW, editH, tabControl_, nullptr, hInst_, nullptr);
 
     keystrokes_ = CreateWindowW(WC_EDIT, nullptr,
@@ -753,6 +752,7 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     case WM_SETCURSOR: {
         HWND target = reinterpret_cast<HWND>(wParam);
         if (target == tabControl_ || target == deviceComboBox_ || target == addressButton_
+            || target == clientsList_
             || (muteButton_ && target == muteButton_->handle())) {
             SetCursor(LoadCursor(nullptr, IDC_HAND));
             return TRUE;

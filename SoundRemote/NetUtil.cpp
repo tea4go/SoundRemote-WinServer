@@ -76,33 +76,46 @@ namespace {
 };
 
 std::forward_list<std::wstring> Net::getLocalAddresses() {
-	// Allocate MIB_IPADDRTABLE
-	std::vector<char> buffer{ sizeof(MIB_IPADDRTABLE) };
-	MIB_IPADDRTABLE* addrTable = reinterpret_cast<MIB_IPADDRTABLE*>(buffer.data());
-	DWORD addrTableSize = 0;
-	if (ERROR_INSUFFICIENT_BUFFER == GetIpAddrTable(addrTable, &addrTableSize, 0)) {
-		buffer.resize(addrTableSize);
-		addrTable = reinterpret_cast<MIB_IPADDRTABLE*>(buffer.data());
-	}
+	std::forward_list<std::wstring> result;
 
-	// Fill MIB_IPADDRTABLE
-	if (NO_ERROR != GetIpAddrTable(addrTable, &addrTableSize, 0)) {
+	ULONG bufSize = 15000;  // Recommended initial size
+	std::vector<char> buffer(bufSize);
+	IP_ADAPTER_ADDRESSES* adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
+	const ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+
+	ULONG rc = GetAdaptersAddresses(AF_INET, flags, nullptr, adapters, &bufSize);
+	if (rc == ERROR_BUFFER_OVERFLOW) {
+		buffer.resize(bufSize);
+		adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
+		rc = GetAdaptersAddresses(AF_INET, flags, nullptr, adapters, &bufSize);
+	}
+	if (rc != NO_ERROR) {
 		return {};
 	}
 
-	// Get addresses from MIB_IPADDRTABLE
-	std::forward_list<std::wstring> result;
-	// For an IPv4 address, buffer should be large enough to hold at least 16 characters.
-	std::wstring addr(16, 0);
-	IN_ADDR IPAddr{};
-	for (int i = addrTable->dwNumEntries - 1; i >= 0; --i) {
-		IPAddr.S_un.S_addr = static_cast<u_long>(addrTable->table[i].dwAddr);
-		auto res = InetNtopW(AF_INET, &IPAddr, addr.data(), addr.size());
-		if (res == nullptr) {
-			return {};
+	std::wstring ipBuf(16, 0);
+	for (IP_ADAPTER_ADDRESSES* a = adapters; a != nullptr; a = a->Next) {
+		// Skip loopback interfaces and non-operational adapters
+		if (a->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
+		if (a->OperStatus != IfOperStatusUp) continue;
+
+		for (IP_ADAPTER_UNICAST_ADDRESS* ua = a->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
+			if (ua->Address.lpSockaddr->sa_family != AF_INET) continue;
+			auto* sin = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
+			// Skip 0.0.0.0 and 127.x.x.x
+			if (sin->sin_addr.S_un.S_addr == 0) continue;
+			if ((sin->sin_addr.S_un.S_addr & 0xFF) == 127) continue;
+
+			if (InetNtopW(AF_INET, &sin->sin_addr, ipBuf.data(), ipBuf.size()) == nullptr) continue;
+
+			std::wstring line{ ipBuf.c_str() };
+			if (a->FriendlyName && a->FriendlyName[0]) {
+				line += L" (";
+				line += a->FriendlyName;
+				line += L")";
+			}
+			result.push_front(line);
 		}
-		// Trim extra 0s at the end
-		result.push_front(addr.c_str());
 	}
 	return result;
 }
