@@ -158,13 +158,13 @@ std::u8string UpdateChecker::getLatestRelease() const {
         // Check for available data.
         dwSize = 0;
         if (!WinHttpQueryDataAvailable(request, &dwSize)) { return {}; }
+        if (dwSize == 0) { break; }
 
-        std::vector<char> outBuffer(dwSize + 1);
-        if (WinHttpReadData(request, outBuffer.data(), dwSize, nullptr)) {
-            result.append(reinterpret_cast<char8_t*>(outBuffer.data()));
-        } else {
-            return {};
-        }
+        std::vector<char> outBuffer(dwSize);
+        DWORD dwRead = 0;
+        if (!WinHttpReadData(request, outBuffer.data(), dwSize, &dwRead)) { return {}; }
+        // Append explicit length — do not rely on a null terminator
+        result.append(reinterpret_cast<char8_t*>(outBuffer.data()), dwRead);
     } while (dwSize > 0);
     return result;
 }
