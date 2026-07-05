@@ -439,7 +439,7 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     
 // Clients label
     const int clientsLabelX = padding;
-    const int clientsLabelY = deviceComboRect.bottom + padding;
+    const int clientsLabelY = deviceComboRect.bottom + padding + 20;
     const int clientsLabelW = leftBlockW;
     const int clientsLabelH = charH;
     HWND clientsLabel = CreateWindow(WC_STATIC, clientListLabel_.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
@@ -471,7 +471,7 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
 
 // Address button
     const int addressButtonX = windowW - rightBlockW - padding;
-    const int addressButtonY = deviceComboRect.bottom + padding;
+    const int addressButtonY = deviceComboRect.bottom + padding + 20;
     const int addressButtonW = rightBlockW;
     const int addressButtonH = rightBlockW;
     addressButton_ = CreateWindowW(WC_BUTTON, L"IP", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
@@ -638,6 +638,13 @@ bool SoundRemoteApp::initInstance(int nCmdShow) {
     initFont();
     initInterface(mainWindow_);
     initControls();
+    // Apply font to controls created by initInterface/initControls
+    if (uiFont_) {
+        EnumChildWindows(mainWindow_, [](HWND child, LPARAM lParam) -> BOOL {
+            SendMessage(child, WM_SETFONT, lParam, TRUE);
+            return TRUE;
+        }, reinterpret_cast<LPARAM>(uiFont_));
+    }
 
     ShowWindow(mainWindow_, nCmdShow);
     return true;

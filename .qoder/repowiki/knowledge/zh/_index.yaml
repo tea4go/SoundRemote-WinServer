@@ -3,7 +3,7 @@ schema_version: 1
 locale: zh-CN
 branch: main
 nodes_managed: true
-exported_at: "2026-07-04T16:56:49Z"
+exported_at: "2026-07-04T17:26:53Z"
 modules:
     "":
         dir_name: SoundRemote Windows 服务端解决方案根
