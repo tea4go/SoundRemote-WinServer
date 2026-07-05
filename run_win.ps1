@@ -5,7 +5,6 @@ param(
     [switch]$InstallDeps,
     [switch]$Check,
     [switch]$Publish,
-    [switch]$BumpVersion,
     [ValidateSet('github', 'gitee')]
     [string]$Target = 'github',
     [string]$Configuration = "Release",
@@ -13,29 +12,29 @@ param(
     [string]$Output = ""
 )
 
-if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish -and -not $BumpVersion) {
-    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-BumpVersion] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>]"
+if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish) {
+    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>]"
     Write-Host ""
     Write-Host "  -Check           检测系统环境，确认所有构建依赖均已就绪"
     Write-Host "  -InstallDeps     安装构建依赖（nuget restore + vcpkg install）"
-    Write-Host "  -BumpVersion     版本号自动 +1（patch），进位规则：每位 max 9"
     Write-Host "  -Build           执行构建"
     Write-Host "  -Run             退出旧版本并运行已构建的最新版本"
     Write-Host "  -Test            运行单元测试"
-    Write-Host "  -Publish         发布已有构建产物到 Release（不重新构建）"
+    Write-Host "  -Publish         版本 +1 → 构建 → 打包上传 Release（一条命令搞定）"
     Write-Host "  -Target          发布平台（与 -Publish 搭配），可选：github（默认）、gitee"
     Write-Host "                   - github：需已安装并登录 gh CLI"
     Write-Host "                   - gitee：需设置环境变量 GITEE_TOKEN"
     Write-Host "  -Configuration   构建配置（默认: Release）"
     Write-Host "  -Platform        目标平台（仅 x64 受支持，默认: x64）"
     Write-Host "  -Output          输出目录（默认: <Platform>\<Configuration>\）"
-    Write-Host ""
-    Write-Host "典型发布流程: .\run_win.ps1 -BumpVersion -Build -Publish"
     exit 0
 }
 
 $exeName = "SoundRemote"
 $sln = "SoundRemote.sln"
+
+# -Publish 隐含 -Build：发布必须构建新的 exe（版本号会先 +1）
+if ($Publish) { $Build = $true }
 
 $defaultOutput = "$Platform\$Configuration"
 $outputDir = if ($Output) { $Output } else { $defaultOutput }
@@ -261,17 +260,67 @@ function Bump-Version {
     return $newVer
 }
 
-if ($BumpVersion) {
-    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
-    if (-not (Bump-Version -RcPath $rcPath)) { exit 1 }
+if ($Build) {
+    # 发布前先递增版本号（在编译前完成，确保新版本号被嵌入 exe）
+    if ($Publish) {
+        $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
+        $version = Bump-Version -RcPath $rcPath
+        if (-not $version) { exit 1 }
+    }
+
+    $msbuild = Initialize-VsEnvironment
+    if (-not $msbuild) { exit 1 }
+    if (-not (Test-Path $msbuild)) {
+        Write-Error "MSBuild 不存在：$msbuild"
+        exit 1
+    }
+    Write-Host "MSBuild: $msbuild"
+
+    # 构建前退出旧版本，避免文件被锁
+    Get-Process -Name $exeName -ErrorAction SilentlyContinue | Stop-Process -Force
+
+    if (Get-Command nuget -ErrorAction SilentlyContinue) {
+        Write-Host "正在还原 NuGet 包..."
+        nuget restore $sln
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    } else {
+        Write-Warning "未找到 nuget 命令，跳过 NuGet 还原（如构建失败请手动执行 nuget restore）"
+    }
+
+    if (Get-Command vcpkg -ErrorAction SilentlyContinue) {
+        Write-Host "正在集成 vcpkg..."
+        vcpkg integrate install | Out-Null
+    } else {
+        Write-Warning "未找到 vcpkg 命令，跳过集成（如已通过 VS 集成则可忽略此警告）"
+    }
+
+    $msbuildArgs = @(
+        $sln,
+        "-m",
+        "-p:Configuration=$Configuration",
+        "-p:Platform=$Platform"
+    )
+    if ($Output) {
+        $resolvedOutput = (New-Item -ItemType Directory -Force -Path $Output).FullName
+        $msbuildArgs += "-p:OutDir=$resolvedOutput\"
+    }
+
+    Write-Host "正在构建 ($Configuration|$Platform)..."
+    & $msbuild @msbuildArgs
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $exePath = Join-Path $outputDir "$exeName.exe"
+    Write-Host "完成 -> $outputDir"
+    Write-Host "可执行文件: $exePath"
 }
+
 if ($Publish) {
     $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
     $version = Read-RcVersion -RcPath $rcPath
     if (-not $version) { Write-Error "无法从 $rcPath 读取版本号"; exit 1 }
 
     $exePath = Join-Path $outputDir "$exeName.exe"
-    if (-not (Test-Path $exePath)) { Write-Error "未找到 $exePath，请先执行 -Build"; exit 1 }
+    if (-not (Test-Path $exePath)) { Write-Error "未找到 $exePath"; exit 1 }
 
     $notesFile = Join-Path $PSScriptRoot "RELEASE_NOTES.md"
     if (-not (Test-Path $notesFile)) {
@@ -384,57 +433,9 @@ becomes unavailable, contact the fork maintainer at the URL listed.
 
         $repo = 'tea4go/SoundRemote-WinServer'
         & gh release create $tag $zipPath --title $title --notes-file $notesFile --repo $repo
-        if ($LASTEXITCODE -ne 0) { Write-Error "GitHub Release 发布失败（tag 可能已存在，请提升版本号后重试）"; exit 1 }
+        if ($LASTEXITCODE -ne 0) { Write-Error "GitHub Release 发布失败（tag 可能已存在）"; exit 1 }
         Write-Host "已发布：https://github.com/$repo/releases/tag/$tag" -ForegroundColor Green
     }
-    exit 0
-}
-
-if ($Build) {
-    $msbuild = Initialize-VsEnvironment
-    if (-not $msbuild) { exit 1 }
-    if (-not (Test-Path $msbuild)) {
-        Write-Error "MSBuild 不存在：$msbuild"
-        exit 1
-    }
-    Write-Host "MSBuild: $msbuild"
-
-    # 构建前退出旧版本，避免文件被锁
-    Get-Process -Name $exeName -ErrorAction SilentlyContinue | Stop-Process -Force
-
-    if (Get-Command nuget -ErrorAction SilentlyContinue) {
-        Write-Host "正在还原 NuGet 包..."
-        nuget restore $sln
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    } else {
-        Write-Warning "未找到 nuget 命令，跳过 NuGet 还原（如构建失败请手动执行 nuget restore）"
-    }
-
-    if (Get-Command vcpkg -ErrorAction SilentlyContinue) {
-        Write-Host "正在集成 vcpkg..."
-        vcpkg integrate install | Out-Null
-    } else {
-        Write-Warning "未找到 vcpkg 命令，跳过集成（如已通过 VS 集成则可忽略此警告）"
-    }
-
-    $msbuildArgs = @(
-        $sln,
-        "-m",
-        "-p:Configuration=$Configuration",
-        "-p:Platform=$Platform"
-    )
-    if ($Output) {
-        $resolvedOutput = (New-Item -ItemType Directory -Force -Path $Output).FullName
-        $msbuildArgs += "-p:OutDir=$resolvedOutput\"
-    }
-
-    Write-Host "正在构建 ($Configuration|$Platform)..."
-    & $msbuild @msbuildArgs
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-    $exePath = Join-Path $outputDir "$exeName.exe"
-    Write-Host "完成 -> $outputDir"
-    Write-Host "可执行文件: $exePath"
 }
 
 if ($Test) {
