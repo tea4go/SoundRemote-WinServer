@@ -42,6 +42,7 @@ private:
 	// Controls
 	HWND mainWindow_ = nullptr;
 	HWND deviceComboBox_ = nullptr;
+	HWND tabControl_ = nullptr;
 	HWND clientsList_ = nullptr;
 	HWND addressButton_ = nullptr;
 	HWND peakMeterProgress_ = nullptr;

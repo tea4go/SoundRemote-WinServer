@@ -437,37 +437,39 @@ void SoundRemoteApp::initInterface(HWND hWndParent) {
     GetClientRect(deviceComboBox_, &deviceComboRect);
     MapWindowPoints(deviceComboBox_, hWndParent, (LPPOINT)&deviceComboRect, 2);
     
-// Clients label
-    const int clientsLabelX = padding;
-    const int clientsLabelY = deviceComboRect.bottom + padding + 20;
-    const int clientsLabelW = leftBlockW;
-    const int clientsLabelH = charH;
-    HWND clientsLabel = CreateWindow(WC_STATIC, clientListLabel_.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
-        clientsLabelX, clientsLabelY, clientsLabelW, clientsLabelH, hWndParent, NULL, hInst_, NULL);
+// Tab control (clients / keystrokes)
+    const int tabX = padding;
+    const int tabY = deviceComboRect.bottom + padding + 20;
+    const int tabW = leftBlockW;
+    const int tabH = windowH - tabY - padding;
+    tabControl_ = CreateWindowW(WC_TABCONTROL, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+        tabX, tabY, tabW, tabH, hWndParent, nullptr, hInst_, nullptr);
 
-// Clients
-    const int clientListX = padding;
-    const int clientListY = clientsLabelY + clientsLabelH + padding;
-    const int clientListW = leftBlockW;
-    const int clientListH = 60;
-    clientsList_ = CreateWindow(WC_EDIT, (LPCWSTR)NULL, WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
-        clientListX, clientListY, clientListW, clientListH, hWndParent, NULL, hInst_, NULL);
+    TCITEMW tie{};
+    tie.mask = TCIF_TEXT;
+    tie.pszText = const_cast<LPWSTR>(clientListLabel_.c_str());
+    TabCtrl_InsertItem(tabControl_, 0, &tie);
+    tie.pszText = const_cast<LPWSTR>(keystrokeListLabel_.c_str());
+    TabCtrl_InsertItem(tabControl_, 1, &tie);
+    // Ensure tab labels are wide enough for the current font (Chinese chars: width ≈ height)
+    TabCtrl_SetMinTabWidth(tabControl_, charH * 3 + 20);
+    TabCtrl_SetPadding(tabControl_, 6, 10);
 
-// Keystrokes label
-    const int keystrokesLabelX = padding;
-    const int keystrokesLabelY = clientListY + clientListH + padding;
-    const int keystrokesLabelW = leftBlockW;
-    const int keystrokesLabelH = charH;
-    HWND keystrokesLabel = CreateWindow(WC_STATIC, keystrokeListLabel_.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
-        keystrokesLabelX, keystrokesLabelY, keystrokesLabelW, keystrokesLabelH, hWndParent, NULL, hInst_, NULL);
+    // Get display area inside the tab control
+    RECT tabDisplay{ 0, 0, tabW, tabH };
+    TabCtrl_AdjustRect(tabControl_, FALSE, &tabDisplay);
+    const int editX = tabDisplay.left;
+    const int editY = tabDisplay.top;
+    const int editW = tabDisplay.right - tabDisplay.left;
+    const int editH = tabDisplay.bottom - tabDisplay.top;
 
-// Keystrokes
-    const int keystrokesX = padding;
-    const int keystrokesY = keystrokesLabelY + keystrokesLabelH + padding;
-    const int keystrokesW = leftBlockW;
-    const int keystrokesH = windowH - keystrokesY - padding;
-    keystrokes_ = CreateWindow(WC_EDIT, (LPCWSTR)NULL, WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
-        keystrokesX, keystrokesY, keystrokesW, keystrokesH, hWndParent, NULL, hInst_, NULL);
+    clientsList_ = CreateWindowW(WC_EDIT, nullptr,
+        WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
+        editX, editY, editW, editH, tabControl_, nullptr, hInst_, nullptr);
+
+    keystrokes_ = CreateWindowW(WC_EDIT, nullptr,
+        WS_CHILD | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_READONLY,
+        editX, editY, editW, editH, tabControl_, nullptr, hInst_, nullptr);
 
 // Address button
     const int addressButtonX = windowW - rightBlockW - padding;
@@ -745,6 +747,17 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             }
         }
     }
+    break;
+
+    case WM_NOTIFY:
+        if (reinterpret_cast<LPNMHDR>(lParam)->hwndFrom == tabControl_) {
+            if (reinterpret_cast<LPNMHDR>(lParam)->code == TCN_SELCHANGE) {
+                int sel = TabCtrl_GetCurSel(tabControl_);
+                ShowWindow(clientsList_, sel == 0 ? SW_SHOW : SW_HIDE);
+                ShowWindow(keystrokes_,  sel == 1 ? SW_SHOW : SW_HIDE);
+                return 0;
+            }
+        }
     break;
 
     case WM_SYSCOMMAND:
