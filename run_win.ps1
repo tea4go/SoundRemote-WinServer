@@ -33,9 +33,6 @@ if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not 
 $exeName = "SoundRemote"
 $sln = "SoundRemote.sln"
 
-# -Publish 隐含 -Build：发布必须构建新的 exe（版本号会先 +1）
-if ($Publish) { $Build = $true }
-
 $defaultOutput = "$Platform\$Configuration"
 $outputDir = if ($Output) { $Output } else { $defaultOutput }
 
@@ -260,14 +257,15 @@ function Bump-Version {
     return $newVer
 }
 
-if ($Build) {
-    # 发布前先递增版本号（在编译前完成，确保新版本号被嵌入 exe）
-    if ($Publish) {
-        $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
-        $version = Bump-Version -RcPath $rcPath
-        if (-not $version) { exit 1 }
-    }
+# Publish：版本号 +1，并强制随后触发 Build（新版本号才能进入 exe）
+if ($Publish) {
+    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
+    $version = Bump-Version -RcPath $rcPath
+    if (-not $version) { exit 1 }
+    $Build = $true
+}
 
+if ($Build) {
     $msbuild = Initialize-VsEnvironment
     if (-not $msbuild) { exit 1 }
     if (-not (Test-Path $msbuild)) {
