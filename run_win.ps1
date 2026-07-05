@@ -13,7 +13,7 @@ param(
 )
 
 if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish) {
-    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>] [-Platform <x64|Win32>] [-Output <目录>]"
+    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>]"
     Write-Host ""
     Write-Host "  -Check           检测系统环境，确认所有构建依赖均已就绪"
     Write-Host "  -InstallDeps     安装构建依赖（nuget restore + vcpkg install）"
@@ -25,7 +25,7 @@ if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not 
     Write-Host "                   - github：需已安装并登录 gh CLI"
     Write-Host "                   - gitee：需设置环境变量 GITEE_TOKEN"
     Write-Host "  -Configuration   构建配置（默认: Release）"
-    Write-Host "  -Platform        目标平台（默认: x64）"
+    Write-Host "  -Platform        目标平台（仅 x64 受支持，默认: x64）"
     Write-Host "  -Output          输出目录（默认: <Platform>\<Configuration>\）"
     exit 0
 }
