@@ -4,19 +4,26 @@ param(
     [switch]$Test,
     [switch]$InstallDeps,
     [switch]$Check,
+    [switch]$Publish,
+    [ValidateSet('github', 'gitee')]
+    [string]$Target = 'github',
     [string]$Configuration = "Release",
     [string]$Platform = "x64",
     [string]$Output = ""
 )
 
-if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check) {
-    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Configuration <Release|Debug>] [-Platform <x64|Win32>] [-Output <目录>]"
+if (-not $Build -and -not $Run -and -not $Test -and -not $InstallDeps -and -not $Check -and -not $Publish) {
+    Write-Host "用法: .\run_win.ps1 [-Check] [-InstallDeps] [-Build] [-Run] [-Test] [-Publish] [-Target <github|gitee>] [-Configuration <Release|Debug>] [-Platform <x64|Win32>] [-Output <目录>]"
     Write-Host ""
     Write-Host "  -Check           检测系统环境，确认所有构建依赖均已就绪"
     Write-Host "  -InstallDeps     安装构建依赖（nuget restore + vcpkg install）"
     Write-Host "  -Build           执行构建"
     Write-Host "  -Run             退出旧版本并运行已构建的最新版本"
     Write-Host "  -Test            运行单元测试"
+    Write-Host "  -Publish         发布已有构建产物到 Release（不重新构建）"
+    Write-Host "  -Target          发布平台（与 -Publish 搭配），可选：github（默认）、gitee"
+    Write-Host "                   - github：需已安装并登录 gh CLI"
+    Write-Host "                   - gitee：需设置环境变量 GITEE_TOKEN"
     Write-Host "  -Configuration   构建配置（默认: Release）"
     Write-Host "  -Platform        目标平台（默认: x64）"
     Write-Host "  -Output          输出目录（默认: <Platform>\<Configuration>\）"
@@ -199,6 +206,101 @@ if ($InstallDeps) {
     }
 
     Write-Host "依赖安装完成"
+}
+
+function Read-RcVersion {
+    param([string]$RcPath)
+    if (-not (Test-Path $RcPath)) { return $null }
+    # .rc 文件是 UTF-16LE 编码
+    $content = Get-Content -LiteralPath $RcPath -Raw -Encoding Unicode
+    if ($content -match 'FILEVERSION\s+(\d+),\s*(\d+),\s*(\d+),\s*(\d+)') {
+        return "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    }
+    return $null
+}
+
+if ($Publish) {
+    $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
+    $version = Read-RcVersion -RcPath $rcPath
+    if (-not $version) { Write-Error "无法从 $rcPath 读取版本号"; exit 1 }
+
+    $exePath = Join-Path $outputDir "$exeName.exe"
+    if (-not (Test-Path $exePath)) { Write-Error "未找到 $exePath，请先执行 -Build"; exit 1 }
+
+    $notesFile = Join-Path $PSScriptRoot "RELEASE_NOTES.md"
+    if (-not (Test-Path $notesFile)) {
+        Write-Error "未找到 RELEASE_NOTES.md，请先创建该文件作为发布说明"
+        exit 1
+    }
+
+    # 打包 exe 为 zip
+    $artifactName = "$exeName-$version-$Platform"
+    $zipPath = Join-Path $outputDir "$artifactName.zip"
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    Compress-Archive -Path $exePath -DestinationPath $zipPath -Force
+
+    $tag = "v$version"
+    $title = "$exeName v$version"
+    Write-Host "  版本: $version" -ForegroundColor Cyan
+    Write-Host "  产物: $zipPath" -ForegroundColor Cyan
+    Write-Host "  Tag:  $tag" -ForegroundColor Cyan
+    Write-Host "  平台: $Target" -ForegroundColor Cyan
+
+    if ($Target -eq 'gitee') {
+        # Gitee Release（API v5）
+        $giteeOwner = 'tea4go'
+        $giteeRepo  = 'SoundRemote-WinServer'
+        $giteeToken = $env:GITEE_TOKEN
+        if ([string]::IsNullOrWhiteSpace($giteeToken)) {
+            Write-Error "未设置 GITEE_TOKEN 环境变量。请先设置："
+            Write-Host '  $env:GITEE_TOKEN = "你的 Gitee 私人令牌"' -ForegroundColor Yellow
+            Write-Host '  获取令牌: https://gitee.com/personal_access_tokens' -ForegroundColor Yellow
+            exit 1
+        }
+
+        $notes = Get-Content -LiteralPath $notesFile -Raw -Encoding UTF8
+        $createUri = "https://gitee.com/api/v5/repos/$giteeOwner/$giteeRepo/releases"
+        $createBody = @{
+            access_token     = $giteeToken
+            tag_name         = $tag
+            name             = $title
+            body             = $notes
+            target_commitish = 'main'
+        }
+        Write-Host "  创建 Gitee Release..." -ForegroundColor Cyan
+        try {
+            $release = Invoke-RestMethod -Method Post -Uri $createUri -Body $createBody -ErrorAction Stop
+        } catch {
+            Write-Error "Gitee Release 创建失败：$($_.Exception.Message)"
+            exit 1
+        }
+        $releaseId = $release.id
+        Write-Host "  Release 已创建（ID: $releaseId）" -ForegroundColor Green
+
+        # 上传附件用 curl.exe（PowerShell multipart 易出错）
+        $curlExe = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
+        if (-not $curlExe) { Write-Error "未找到 curl.exe"; exit 1 }
+
+        $uploadUri = "https://gitee.com/api/v5/repos/$giteeOwner/$giteeRepo/releases/$releaseId/attach_files"
+        Write-Host "  上传 $(Split-Path $zipPath -Leaf) ..." -ForegroundColor Cyan
+        & $curlExe -s -S -X POST -F "file=@$zipPath" -F "access_token=$giteeToken" $uploadUri
+        if ($LASTEXITCODE -ne 0) { Write-Error "附件上传失败（curl 退出码 $LASTEXITCODE）"; exit 1 }
+        Write-Host "已发布：https://gitee.com/$giteeOwner/$giteeRepo/releases/tag/$tag" -ForegroundColor Green
+    } else {
+        # GitHub Release（gh CLI）
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+            Write-Error "未找到 gh CLI，请先安装：https://cli.github.com/ 并 gh auth login"
+            exit 1
+        }
+        & gh auth status 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Error "gh 未登录，请先执行：gh auth login"; exit 1 }
+
+        $repo = 'tea4go/SoundRemote-WinServer'
+        & gh release create $tag $zipPath --title $title --notes-file $notesFile --repo $repo
+        if ($LASTEXITCODE -ne 0) { Write-Error "GitHub Release 发布失败（tag 可能已存在，请提升版本号后重试）"; exit 1 }
+        Write-Host "已发布：https://github.com/$repo/releases/tag/$tag" -ForegroundColor Green
+    }
+    exit 0
 }
 
 if ($Build) {
