@@ -30,11 +30,14 @@ namespace Net {
 		constexpr int ackCustomDataOffset = dataOffset + sizeof(RequestIdType);
 		constexpr int sequenceNumberSize = sizeof(SequenceNumberType);
 		constexpr int audioDataOffset = dataOffset + sequenceNumberSize;
+		constexpr int passwordFieldSize = 32; // 定长密码字段（null 填充）
 		struct ConnectData {
 			ProtocolVersionType protocol;
 			RequestIdType requestId;
 			CompressionType compression;
-			static const int size = sizeof(ProtocolVersionType) + sizeof(RequestIdType) + sizeof(CompressionType);
+			char password[passwordFieldSize]; // UTF-8/ASCII，末尾 null 填充
+			static const int size = sizeof(ProtocolVersionType) + sizeof(RequestIdType)
+				+ sizeof(CompressionType) + passwordFieldSize;
 		};
 		struct SetFormatData {
 			RequestIdType requestId;
@@ -57,7 +60,7 @@ namespace Net {
 			Ack = 0xF0u
 		};
 	}
-	constexpr Packet::ProtocolVersionType protocolVersion = 1u;
+	constexpr Packet::ProtocolVersionType protocolVersion = 2u; // v2: 增加密码字段
 
 	using Address = boost::asio::ip::address;
 

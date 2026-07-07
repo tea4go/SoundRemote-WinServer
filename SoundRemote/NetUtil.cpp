@@ -214,6 +214,10 @@ std::optional<Net::Packet::ConnectData> Net::getConnectData(const std::span<char
 	data.requestId = readUInt16B(packet, offset);
 	offset += sizeof(Net::Packet::RequestIdType);
 	data.compression = readUInt8(packet, offset);
+	offset += sizeof(Net::Packet::CompressionType);
+	// 读取定长密码字段（32 字节，null 填充）
+	std::memcpy(data.password, packet.data() + offset, Packet::passwordFieldSize);
+	data.password[Packet::passwordFieldSize - 1] = '\0'; // 确保 null 终止
 	return data;
 }
 

@@ -19,6 +19,7 @@ public:
 	std::wstring getFont() const;
 	double getFontSize() const;
 	bool getFontBold() const;
+	std::string getPassword() const;   // ASCII/UTF-8 密码
 	/// <summary>
 	/// Updates the 'check_updates' preference and modifies the file only if the
 	/// new value is different from the current one.

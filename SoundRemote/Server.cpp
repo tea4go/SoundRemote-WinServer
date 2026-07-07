@@ -15,9 +15,11 @@ using boost::asio::use_awaitable;
 using namespace std::chrono_literals;
 using namespace std::placeholders;
 
-Server::Server(int clientPort, int serverPort, boost::asio::io_context& ioContext, std::shared_ptr<Clients> clients) :
+Server::Server(int clientPort, int serverPort, boost::asio::io_context& ioContext,
+    std::shared_ptr<Clients> clients, std::string password) :
     clientPort_(clientPort),
     clients_(clients),
+    password_(std::move(password)),
     socketSend_(ioContext, udp::v4()),
     socketReceive_(ioContext, udp::endpoint(udp::v4(), serverPort)),
     maintainenanceTimer_(ioContext) {
@@ -129,6 +131,16 @@ void Server::processConnect(const Net::Address& address, const std::span<char>& 
     if (!connectData) { return; }
     auto compression = Net::compressionFromNetworkValue(connectData->compression);
     if (!compression) { return; }
+
+    // 密码验证：password_ 为空表示不验证；否则严格匹配
+    if (!password_.empty()) {
+        // password 字段是 32 字节 null 填充的 UTF-8/ASCII
+        std::string clientPassword(connectData->password);
+        if (clientPassword != password_) {
+            return;  // 密码不匹配，静默丢弃（防止被枚举试探）
+        }
+    }
+
     clients_->add(address, *compression);
 
     send(address, std::make_shared<std::vector<char>>(

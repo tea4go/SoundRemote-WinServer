@@ -21,7 +21,8 @@ class Server {
 public:
 	using KeystrokeCallback = std::function<void(const Keystroke& keystroke)>;
 
-	Server(int clientPort, int serverPort, boost::asio::io_context& ioContext, std::shared_ptr<Clients> clients);
+	Server(int clientPort, int serverPort, boost::asio::io_context& ioContext,
+		std::shared_ptr<Clients> clients, std::string password);
 	~Server();
 	void onClientsUpdate(std::forward_list<ClientInfo> clients);
 	void sendAudio(
@@ -54,6 +55,7 @@ private:
 	boost::asio::ip::udp::socket socketReceive_;
 	boost::asio::steady_timer maintainenanceTimer_;
 	int clientPort_;
+	std::string password_;     // 期望的连接密码（空字符串表示不验证）
 	KeystrokeCallback keystrokeCallback_;
 	std::shared_ptr<Clients> clients_;
 	std::unordered_map<Audio::Compression, std::forward_list<Net::Address>> clientsCache_;

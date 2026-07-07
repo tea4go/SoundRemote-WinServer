@@ -14,6 +14,7 @@ namespace Setting {
 	constexpr auto checkUpdates{ L"check_updates" };
 	constexpr auto captureDevice{ L"capture_device" };
 	constexpr auto lastUpdateCheck{ L"last_update_check" };
+	constexpr auto password{ L"password" };
 	constexpr auto language{ L"Language" };
 	constexpr auto font{ L"Font" };
 	constexpr auto fontSize{ L"Font.Size" };
@@ -25,6 +26,7 @@ namespace DefaultValue {
 	constexpr auto clientPort{ Net::defaultClientPort };
 	constexpr bool checkUpdates{ true };
 	constexpr auto captureDevice = defaultRenderDeviceId;
+	constexpr auto password{ L"testing123" };
 	constexpr auto language{ L"Auto" };
 	constexpr auto font{ L"Segoe UI" };
 	constexpr double fontSize{ 9.0 };
@@ -56,6 +58,17 @@ bool Settings::getCheckUpdates() const {
 
 std::wstring Settings::getCaptureDevice() const {
 	return ini_->GetValue(Section::general, Setting::captureDevice);
+}
+
+std::string Settings::getPassword() const {
+	auto wide = std::wstring(ini_->GetValue(Section::general, Setting::password, DefaultValue::password));
+	// wstring -> UTF-8 (ASCII 密码为主，此处简单转换)
+	std::string result;
+	result.reserve(wide.size());
+	for (auto ch : wide) {
+		if (ch < 128) result.push_back(static_cast<char>(ch));
+	}
+	return result;
 }
 
 std::wstring Settings::getLanguage() const {
@@ -131,6 +144,7 @@ void Settings::setDefaultValues() {
 	ini_->SetLongValue(Section::network, Setting::clientPort, DefaultValue::clientPort);
 	ini_->SetBoolValue(Section::general, Setting::checkUpdates, DefaultValue::checkUpdates);
 	ini_->SetValue(Section::general, Setting::captureDevice, DefaultValue::captureDevice);
+	ini_->SetValue(Section::general, Setting::password, DefaultValue::password);
 	ini_->SetValue(Section::ui, Setting::language, DefaultValue::language);
 	ini_->SetValue(Section::ui, Setting::font, DefaultValue::font);
 	ini_->SetDoubleValue(Section::ui, Setting::fontSize, DefaultValue::fontSize);
@@ -159,6 +173,10 @@ void Settings::checkMissingSettings() {
 	}
 	if (!ini_->KeyExists(Section::general, Setting::captureDevice)) {
 		ini_->SetValue(Section::general, Setting::captureDevice, DefaultValue::captureDevice);
+		saveNeeded = true;
+	}
+	if (!ini_->KeyExists(Section::general, Setting::password)) {
+		ini_->SetValue(Section::general, Setting::password, DefaultValue::password);
 		saveNeeded = true;
 	}
 	if (!ini_->KeyExists(Section::ui, Setting::language)) {
