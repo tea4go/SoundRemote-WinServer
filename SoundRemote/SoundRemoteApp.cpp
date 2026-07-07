@@ -30,6 +30,8 @@ namespace {
     constexpr int windowHeight = 450;			// main window height
     constexpr int timerIdPeakMeter = 1;
     constexpr int timerPeriodPeakMeter = 33;    // in milliseconds
+    constexpr UINT WM_TRAY = WM_APP + 1;        // tray icon notification message
+    constexpr UINT TRAY_UID = 1;                // tray icon ID
 
     constexpr auto defaultRenderDeviceKey = -1;
     constexpr auto defaultCaptureDeviceKey = -2;
@@ -51,6 +53,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 SoundRemoteApp::SoundRemoteApp(_In_ HINSTANCE hInstance): hInst_(hInstance), ioContext_() {}
 
 SoundRemoteApp::~SoundRemoteApp() {
+    removeTrayIcon();
     boost::asio::post(ioContext_, std::bind(&SoundRemoteApp::shutdown, this));
 
     if (ioContextThread_ && ioContextThread_->joinable()) {
@@ -59,6 +62,39 @@ SoundRemoteApp::~SoundRemoteApp() {
     if (uiFont_) {
         DeleteObject(uiFont_);
     }
+}
+
+void SoundRemoteApp::addTrayIcon() {
+    if (trayIconAdded_) return;
+    NOTIFYICONDATAW nid{ sizeof(nid) };
+    nid.hWnd = mainWindow_;
+    nid.uID  = TRAY_UID;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.uCallbackMessage = WM_TRAY;
+    nid.hIcon = LoadIcon(hInst_, MAKEINTRESOURCE(IDI_SOUNDREMOTE));
+    wcscpy_s(nid.szTip, mainWindowTitle_.c_str());
+    Shell_NotifyIconW(NIM_ADD, &nid);
+    trayIconAdded_ = true;
+}
+
+void SoundRemoteApp::removeTrayIcon() {
+    if (!trayIconAdded_) return;
+    NOTIFYICONDATAW nid{ sizeof(nid) };
+    nid.hWnd = mainWindow_;
+    nid.uID  = TRAY_UID;
+    Shell_NotifyIconW(NIM_DELETE, &nid);
+    trayIconAdded_ = false;
+}
+
+void SoundRemoteApp::hideToTray() {
+    addTrayIcon();
+    ShowWindow(mainWindow_, SW_HIDE);
+}
+
+void SoundRemoteApp::showFromTray() {
+    ShowWindow(mainWindow_, SW_SHOW);
+    SetForegroundWindow(mainWindow_);
+    if (IsIconic(mainWindow_)) ShowWindow(mainWindow_, SW_RESTORE);
 }
 
 std::unique_ptr<SoundRemoteApp> SoundRemoteApp::create(_In_ HINSTANCE hInstance){
@@ -753,7 +789,9 @@ bool SoundRemoteApp::initInstance(int nCmdShow) {
         }, reinterpret_cast<LPARAM>(uiFont_));
     }
 
-    ShowWindow(mainWindow_, nCmdShow);
+    // 启动最小化到托盘：不显示主窗口，仅添加托盘图标
+    addTrayIcon();
+    (void)nCmdShow;  // 忽略传入的显示模式，始终从托盘启动
     return true;
 }
 
@@ -891,8 +929,39 @@ LRESULT SoundRemoteApp::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
 
     case WM_SYSCOMMAND:
         if (wParam == SC_CLOSE) {
-            DestroyWindow(mainWindow_);
+            // 点击关闭按钮隐藏到托盘，不退出程序
+            hideToTray();
             return 0;
+        }
+        if ((wParam & 0xFFF0) == SC_MINIMIZE) {
+            // 最小化时也隐藏到托盘
+            hideToTray();
+            return 0;
+        }
+    break;
+
+    case WM_TRAY:
+        switch (LOWORD(lParam)) {
+        case WM_LBUTTONUP:
+        case WM_LBUTTONDBLCLK:
+            showFromTray();
+            return 0;
+        case WM_RBUTTONUP: {
+            // 右键菜单：显示/退出
+            HMENU popup = CreatePopupMenu();
+            const bool zh = (resolveLanguage() == L"Chinese");
+            AppendMenuW(popup, MF_STRING, 1, zh ? L"显示主界面" : L"Show");
+            AppendMenuW(popup, MF_SEPARATOR, 0, nullptr);
+            AppendMenuW(popup, MF_STRING, 2, zh ? L"退出" : L"Exit");
+            POINT pt; GetCursorPos(&pt);
+            SetForegroundWindow(mainWindow_);
+            int cmd = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                pt.x, pt.y, 0, mainWindow_, nullptr);
+            DestroyMenu(popup);
+            if (cmd == 1) showFromTray();
+            else if (cmd == 2) { removeTrayIcon(); DestroyWindow(mainWindow_); }
+            return 0;
+        }
         }
     break;
 

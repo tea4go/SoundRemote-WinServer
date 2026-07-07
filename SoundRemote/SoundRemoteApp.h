@@ -49,6 +49,7 @@ private:
 	HWND keystrokes_ = nullptr;
 	std::unique_ptr<MuteButton> muteButton_;
 	HFONT uiFont_ = nullptr;
+	bool trayIconAdded_ = false;
 	// Data
 	std::wstring currentDeviceId_;
 	// Device key - number stored as data in select device ComboBox items
@@ -70,6 +71,10 @@ private:
 	void initInterface(HWND hWndParent);
 	void initFont();
 	void initControls();
+	void addTrayIcon();
+	void removeTrayIcon();
+	void showFromTray();
+	void hideToTray();
 	/// 解析实际生效的语言（Auto 会检测系统区域设置）
 	std::wstring resolveLanguage() const;
 	/// 切换语言并保存设置，重启窗口内容
