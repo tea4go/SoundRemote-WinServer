@@ -9,6 +9,24 @@
 
 ![Main Window](https://github.com/user-attachments/assets/1b86c980-132d-4661-87ed-dbe3dd670a8a "Main Window")
 
+## Virtual-Audio Setup
+
+*Use VB-Audio Cable to stream audio to your phone while keeping your main playback device muted.*
+
+### Step 1: Install VB-Audio Virtual Cable
+
+1. Download the free driver from [VB-Audio Cable Official Website](https://vb-audio.com/Cable/).
+2. Extract the ZIP file and run `VBCABLE_Setup_x64.exe` as Administrator.
+3. Restart your PC if prompted.
+
+### Step 2: Set CABLE Input as Default Playback Device
+
+1. Press `Win + R` on your keyboard to open the **Run** dialog.
+2. Type `mmsys.cpl` and press **Enter** (this opens Windows Sound Control Panel).
+3. Under the **Playback** tab, locate **CABLE Input (VB-Audio Virtual Cable)**.
+4. Right-click **CABLE Input** and click **Set as Default Device**.
+5. Click **Apply** and **OK**.
+
  ## Fork Information
 
  This project is forked from [SoundRemote/server-windows](<https://github.com/SoundRemote/server-windows>), created by **Aleksandr Shipovskii**, Copyright © 2025, and continues to be released under the GPL-3.0 license.
