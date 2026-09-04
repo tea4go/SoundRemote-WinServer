@@ -1,5 +1,7 @@
 # SoundRemote 服务端（tea4go fork）
 
+**[EN](README.en.md) · [简体中文](README.md)**
+
 桌面应用，通过 [SoundRemote 客户端](https://github.com/SoundRemote/client-android) 与 Android 设备配对，实现以下功能：
 * 捕获音频并发送到客户端设备。
 * 模拟从客户端接收的键盘快捷键。部分快捷键（如 `Ctrl + Alt + Delete` 或 `Win + L`）目前尚不支持。
@@ -43,4 +45,4 @@
 
 本项目采用 **GPL-3.0** 协议，完整文本见 `COPYING` 文件。第三方依赖 Opus 采用 BSD 风格许可，见 `opus_license.txt`。
 
-根据 GPL-3.0 §6，二进制发布必须附带完整源码或提供获取源码的书面途径。本项目源码托管于 https://github.com/tea4go/SoundRemote-WinServer。
+根据 GPL-3.0，二进制发布必须附带完整源码或提供获取源码的书面途径。本项目源码托管于 https://github.com/tea4go/SoundRemote-WinServer。
