@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Build,
     [switch]$Run,
     [switch]$Test,
@@ -220,7 +220,7 @@ function Read-RcVersion {
     return $null
 }
 
-function Bump-Version {
+function Update-Version {
     param([string]$RcPath)
     if (-not (Test-Path $RcPath)) { Write-Error "未找到 $RcPath"; return $null }
     $content = Get-Content -LiteralPath $RcPath -Raw -Encoding Unicode
@@ -261,7 +261,7 @@ function Bump-Version {
 # -Build 时版本号自增：每次构建产生一个唯一版本
 if ($Build) {
     $rcPath = Join-Path $PSScriptRoot "SoundRemote\SoundRemote.rc"
-    $version = Bump-Version -RcPath $rcPath
+    $version = Update-Version -RcPath $rcPath
     if (-not $version) { exit 1 }
 }
 

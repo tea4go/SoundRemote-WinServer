@@ -1,10 +1,28 @@
 # SoundRemote 服务端（tea4go fork）
 
+**[EN](README.en.md) · [简体中文](README.md)**
+
 桌面应用，通过 [SoundRemote 客户端](https://github.com/SoundRemote/client-android) 与 Android 设备配对，实现以下功能：
 * 捕获音频并发送到客户端设备。
 * 模拟从客户端接收的键盘快捷键。部分快捷键（如 `Ctrl + Alt + Delete` 或 `Win + L`）目前尚不支持。
 
 ![主窗口](https://github.com/user-attachments/assets/1b86c980-132d-4661-87ed-dbe3dd670a8a "主窗口")
+
+## 虚拟音频设置
+
+*使用 VB-Audio Cable 将音频传输到手机，同时将主播放设备静音。*
+
+### 步骤 1：安装 VB-Audio Virtual Cable
+1. 从 [VB-Audio Cable 官方网站](https://vb-audio.com/Cable/) 下载免费驱动。
+2. 解压 ZIP 文件，以管理员身份运行 `VBCABLE_Setup_x64.exe`。
+3. 如果系统提示，请重启电脑。
+
+### 步骤 2：将 CABLE Input 设置为默认播放设备
+1. 按键盘上的 `Win + R` 打开 **运行** 对话框。
+2. 输入 `mmsys.cpl` 并按 **Enter**（这将打开 Windows 声音控制面板）。
+3. 在 **播放** 选项卡中找到 **CABLE Input (VB-Audio Virtual Cable)**。
+4. 右键单击 **CABLE Input**，然后单击 **设置为默认设备**。
+5. 单击 **应用** 和 **确定**。
 
 ## Fork 说明
 
@@ -43,4 +61,4 @@
 
 本项目采用 **GPL-3.0** 协议，完整文本见 `COPYING` 文件。第三方依赖 Opus 采用 BSD 风格许可，见 `opus_license.txt`。
 
-根据 GPL-3.0 §6，二进制发布必须附带完整源码或提供获取源码的书面途径。本项目源码托管于 https://github.com/tea4go/SoundRemote-WinServer。
+根据 GPL-3.0，二进制发布必须附带完整源码或提供获取源码的书面途径。本项目源码托管于 https://github.com/tea4go/SoundRemote-WinServer。
