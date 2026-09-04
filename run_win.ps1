@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Build,
     [switch]$Run,
     [switch]$Test,
